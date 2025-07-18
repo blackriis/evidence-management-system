@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  uploadedEvidence Evidence[] @relation("EvidenceUploader")
+  evaluations      Evaluation[]
+  ownedSubIndicators SubIndicator[] @relation("SubIndicatorOwner")
+
+  @@map("users")
+}
+
+model AcademicYear {
+  id                    String   @id @default(cuid())
+  name                  String   @unique
+  startDate             DateTime
+  endDate               DateTime
+  uploadWindowOpen      Boolean  @default(false)
+  evaluationWindowOpen  Boolean  @default(false)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  evidence Evidence[]
+
+  @@map("academic_years")
+}
+
+model EducationLevel {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  standards Standard[]
+
+  @@map("education_levels")
+}
+
+model Standard {
+  id               String   @id @default(cuid())
+  name             String
+  code             String
+  educationLevelId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  educationLevel EducationLevel @relation(fields: [educationLevelId], references: [id], onDelete: Cascade)
+  indicators     Indicator[]
+
+  @@unique([code, educationLevelId])
+  @@map("standards")
+}
+
+model Indicator {
+  id         String   @id @default(cuid())
+  name       String
+  code       String
+  standardId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  standard      Standard       @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  subIndicators SubIndicator[]
+
+  @@unique([code, standardId])
+  @@map("indicators")
+}
+
+model SubIndicator {
+  id          String   @id @default(cuid())
+  name        String
+  code        String
+  indicatorId String
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  owner     User?     @relation("SubIndicatorOwner", fields: [ownerId], references: [id])
+  evidence  Evidence[]
+
+  @@unique([code, indicatorId])
+  @@map("sub_indicators")
+}
+
+model Evidence {
+  id              String   @id @default(cuid())
+  filename        String
+  originalName    String
+  fileSize        Int
+  mimeType        String
+  uploaderId      String
+  academicYearId  String
+  subIndicatorId  String
+  version         Int      @default(1)
+  isLatest        Boolean  @default(true)
+  storageKey      String   @unique
+  uploadedAt      DateTime @default(now())
+  deletedAt       DateTime?
+
+  // Relations
+  uploader     User          @relation("EvidenceUploader", fields: [uploaderId], references: [id])
+  academicYear AcademicYear  @relation(fields: [academicYearId], references: [id])
+  subIndicator SubIndicator  @relation(fields: [subIndicatorId], references: [id])
+  evaluations  Evaluation[]
+
+  @@index([uploaderId, academicYearId])
+  @@index([subIndicatorId, isLatest])
+  @@map("evidence")
+}
+
+model Evaluation {
+  id                 String   @id @default(cuid())
+  evidenceId         String
+  evaluatorId        String
+  qualitativeScore   Int?     // 1-5 scale
+  quantitativeScore  Int?     // 0-100 percentage
+  comments           String?
+  evaluatedAt        DateTime @default(now())
+
+  // Relations
+  evidence  Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  evaluator User     @relation(fields: [evaluatorId], references: [id])
+
+  @@unique([evidenceId, evaluatorId])
+  @@map("evaluations")
+}
+
+enum UserRole {
+  TEACHER
+  IQA_EVALUATOR
+  EQA_EVALUATOR
+  EXECUTIVE
+  ADMIN
+}
