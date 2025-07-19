@@ -395,7 +395,7 @@ export function UserManagement({ onStatusChange }: UserManagementProps) {
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Roles</SelectItem>
+                <SelectItem value="all">All Roles</SelectItem>
                 {Object.values(UserRole).map(role => (
                   <SelectItem key={role} value={role}>
                     {role.replace('_', ' ')}

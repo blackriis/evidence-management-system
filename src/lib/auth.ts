@@ -1,7 +1,15 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+
+// Define UserRole enum locally to avoid import issues
+enum UserRole {
+  TEACHER = "TEACHER",
+  IQA_EVALUATOR = "IQA_EVALUATOR", 
+  EQA_EVALUATOR = "EQA_EVALUATOR",
+  EXECUTIVE = "EXECUTIVE",
+  ADMIN = "ADMIN"
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   FileText
 } from "lucide-react";
 import { FileValidator } from "@/lib/file-validation";
+import { UploadNotifications, useUploadNotifications } from "./upload-notifications";
 
 interface FileUploadProps {
   subIndicatorId: string;
@@ -33,6 +34,10 @@ interface UploadFile {
   status: 'pending' | 'uploading' | 'completed' | 'error';
   error?: string;
   evidenceId?: string;
+  uploadSpeed?: number; // bytes per second
+  remainingTime?: number; // seconds
+  uploadedBytes?: number;
+  startTime?: number;
 }
 
 export function FileUpload({ 
@@ -46,7 +51,17 @@ export function FileUpload({
   const [isDragOver, setIsDragOver] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [totalUploadSpeed, setTotalUploadSpeed] = useState(0);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { 
+    notifications, 
+    removeNotification, 
+    notifySuccess, 
+    notifyError, 
+    notifyInfo 
+  } = useUploadNotifications();
 
   const loadQuotaInfo = useCallback(async () => {
     try {
@@ -58,10 +73,33 @@ export function FileUpload({
     }
   }, [academicYearId, subIndicatorId]);
 
-  // Load quota info on component mount
-  useState(() => {
+  // Load quota info when component mounts or dependencies change
+  useEffect(() => {
     loadQuotaInfo();
-  });
+  }, [loadQuotaInfo]);
+
+  // Calculate overall upload statistics
+  useEffect(() => {
+    const uploadingFiles = files.filter(f => f.status === 'uploading');
+    
+    if (uploadingFiles.length === 0) {
+      setOverallProgress(0);
+      setTotalUploadSpeed(0);
+      setEstimatedTimeRemaining(0);
+      return;
+    }
+
+    const totalSize = uploadingFiles.reduce((sum, f) => sum + f.file.size, 0);
+    const totalUploaded = uploadingFiles.reduce((sum, f) => sum + (f.uploadedBytes || 0), 0);
+    const totalSpeed = uploadingFiles.reduce((sum, f) => sum + (f.uploadSpeed || 0), 0);
+
+    const progress = totalSize > 0 ? (totalUploaded / totalSize) * 100 : 0;
+    const remaining = totalSpeed > 0 ? (totalSize - totalUploaded) / totalSpeed : 0;
+
+    setOverallProgress(progress);
+    setTotalUploadSpeed(totalSpeed);
+    setEstimatedTimeRemaining(remaining);
+  }, [files]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,7 +144,9 @@ export function FileUpload({
     const validationResult = FileValidator.validateMultipleFiles(fileInfos, quotaInfo.quota.available);
     
     if (!validationResult.isValid) {
-      onUploadError?.(validationResult.errors.join(', '));
+      const errorMessage = validationResult.errors.join(', ');
+      onUploadError?.(errorMessage);
+      notifyError('ไฟล์ไม่ถูกต้อง', errorMessage);
       return;
     }
 
@@ -123,53 +163,188 @@ export function FileUpload({
     formData.append('subIndicatorId', subIndicatorId);
     formData.append('replace', 'true');
 
-    try {
+    const startTime = Date.now();
+
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      // Initial status update
       setFiles(prev => prev.map(f => 
         f.id === uploadFile.id 
-          ? { ...f, status: 'uploading', progress: 0 }
+          ? { 
+              ...f, 
+              status: 'uploading', 
+              progress: 0, 
+              startTime,
+              uploadedBytes: 0,
+              uploadSpeed: 0,
+              remainingTime: 0
+            }
           : f
       ));
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      // Progress tracking
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          const currentTime = Date.now();
+          const elapsedTime = (currentTime - startTime) / 1000; // seconds
+          const uploadSpeed = elapsedTime > 0 ? event.loaded / elapsedTime : 0; // bytes per second
+          const remainingBytes = event.total - event.loaded;
+          const remainingTime = uploadSpeed > 0 ? remainingBytes / uploadSpeed : 0; // seconds
+
+          setFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { 
+                  ...f, 
+                  progress,
+                  uploadedBytes: event.loaded,
+                  uploadSpeed,
+                  remainingTime
+                }
+              : f
+          ));
+        }
       });
 
-      const data = await response.json();
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setFiles(prev => prev.map(f => 
+              f.id === uploadFile.id 
+                ? { 
+                    ...f, 
+                    status: 'completed', 
+                    progress: 100, 
+                    evidenceId: data.evidence.id,
+                    uploadSpeed: 0,
+                    remainingTime: 0
+                  }
+                : f
+            ));
 
-      setFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, status: 'completed', progress: 100, evidenceId: data.evidence.id }
-          : f
-      ));
+            onUploadComplete?.(data.evidence);
+            loadQuotaInfo(); // Refresh quota info
+            notifySuccess(
+              'อัพโหลดสำเร็จ', 
+              `ไฟล์ ${uploadFile.file.name} ถูกอัพโหลดเรียบร้อยแล้ว`
+            );
+            resolve();
+          } else {
+            throw new Error(data.error || 'Upload failed');
+          }
+        } catch (error) {
+          setFiles(prev => prev.map(f => 
+            f.id === uploadFile.id 
+              ? { 
+                  ...f, 
+                  status: 'error', 
+                  error: error instanceof Error ? error.message : 'Upload failed',
+                  uploadSpeed: 0,
+                  remainingTime: 0
+                }
+              : f
+          ));
 
-      onUploadComplete?.(data.evidence);
-      loadQuotaInfo(); // Refresh quota info
+          const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+          onUploadError?.(errorMessage);
+          notifyError('อัพโหลดล้มเหลว', `ไฟล์ ${uploadFile.file.name}: ${errorMessage}`);
+          reject(error);
+        }
+      });
 
-    } catch (error) {
-      setFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { ...f, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' }
-          : f
-      ));
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        const errorMessage = 'Network error occurred during upload';
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id 
+            ? { 
+                ...f, 
+                status: 'error', 
+                error: errorMessage,
+                uploadSpeed: 0,
+                remainingTime: 0
+              }
+            : f
+        ));
 
-      onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
-    }
+        onUploadError?.(errorMessage);
+        notifyError('เครือข่ายขัดข้อง', `ไฟล์ ${uploadFile.file.name}: ${errorMessage}`);
+        reject(new Error(errorMessage));
+      });
+
+      // Handle abort
+      xhr.addEventListener('abort', () => {
+        const errorMessage = 'Upload was cancelled';
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id 
+            ? { 
+                ...f, 
+                status: 'error', 
+                error: errorMessage,
+                uploadSpeed: 0,
+                remainingTime: 0
+              }
+            : f
+        ));
+
+        reject(new Error(errorMessage));
+      });
+
+      // Start the upload
+      xhr.open('POST', '/api/upload');
+      xhr.send(formData);
+    });
   };
 
   const uploadAllFiles = async () => {
     setIsLoading(true);
     const pendingFiles = files.filter(f => f.status === 'pending');
     
+    if (pendingFiles.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+
+    notifyInfo(
+      'เริ่มต้นการอัพโหลด', 
+      `กำลังอัพโหลด ${pendingFiles.length} ไฟล์`
+    );
+
+    let successCount = 0;
+    let errorCount = 0;
+
     for (const file of pendingFiles) {
-      await uploadFile(file);
+      try {
+        await uploadFile(file);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
     }
     
     setIsLoading(false);
+
+    // Summary notification
+    if (errorCount === 0) {
+      notifySuccess(
+        'อัพโหลดเสร็จสิ้น', 
+        `อัพโหลดสำเร็จ ${successCount} ไฟล์`
+      );
+    } else if (successCount === 0) {
+      notifyError(
+        'อัพโหลดล้มเหลว', 
+        `อัพโหลดล้มเหลวทั้งหมด ${errorCount} ไฟล์`
+      );
+    } else {
+      notifyInfo(
+        'อัพโหลดเสร็จสิ้นบางส่วน', 
+        `สำเร็จ ${successCount} ไฟล์, ล้มเหลว ${errorCount} ไฟล์`
+      );
+    }
   };
 
   const clearAllFiles = () => {
@@ -200,6 +375,45 @@ export function FileUpload({
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
     }
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const formatSpeed = (bytesPerSecond: number): string => {
+    if (bytesPerSecond === 0) return '0 B/s';
+    return formatBytes(bytesPerSecond) + '/s';
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (seconds === 0 || !isFinite(seconds)) return '--';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const getUploadDetails = (uploadFile: UploadFile) => {
+    if (uploadFile.status === 'uploading') {
+      return (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{uploadFile.progress}%</span>
+            <span>{formatBytes(uploadFile.uploadedBytes || 0)} / {formatBytes(uploadFile.file.size)}</span>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{formatSpeed(uploadFile.uploadSpeed || 0)}</span>
+            <span>เหลืออีก {formatTime(uploadFile.remainingTime || 0)}</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   if (!quotaInfo) {
@@ -309,6 +523,22 @@ export function FileUpload({
               <FileText className="h-5 w-5" />
               Files to Upload ({files.length})
             </CardTitle>
+            
+            {/* Overall upload progress */}
+            {isLoading && files.some(f => f.status === 'uploading') && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>รวมความคืบหน้า</span>
+                  <span>{Math.round(overallProgress)}%</span>
+                </div>
+                <Progress value={overallProgress} className="h-2" />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>ความเร็วรวม: {formatSpeed(totalUploadSpeed)}</span>
+                  <span>เวลาที่เหลืออีก: {formatTime(estimatedTimeRemaining)}</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button 
                 onClick={uploadAllFiles} 
@@ -318,10 +548,10 @@ export function FileUpload({
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Uploading...
+                    กำลังอัพโหลด...
                   </>
                 ) : (
-                  'Upload All'
+                  'อัพโหลดทั้งหมด'
                 )}
               </Button>
               <Button 
@@ -330,51 +560,75 @@ export function FileUpload({
                 size="sm"
                 disabled={isLoading}
               >
-                Clear All
+                ล้างทั้งหมด
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {files.map((uploadFile) => (
-                <div key={uploadFile.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                  {getStatusIcon(uploadFile.status)}
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{uploadFile.file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {FileValidator.formatFileSize(uploadFile.file.size)}
-                    </p>
+                <div key={uploadFile.id} className="border rounded-lg p-4 space-y-3">
+                  {/* File info header */}
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(uploadFile.status)}
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{uploadFile.file.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {FileValidator.formatFileSize(uploadFile.file.size)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(uploadFile.status)}
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(uploadFile.id)}
+                        disabled={uploadFile.status === 'uploading'}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(uploadFile.status)}
-                    
-                    {uploadFile.status === 'uploading' && (
-                      <div className="w-24">
-                        <Progress value={uploadFile.progress} className="h-2" />
-                      </div>
-                    )}
-                    
-                    {uploadFile.status === 'error' && uploadFile.error && (
-                      <p className="text-xs text-red-500 max-w-xs truncate">{uploadFile.error}</p>
-                    )}
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile(uploadFile.id)}
-                      disabled={uploadFile.status === 'uploading'}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {/* Progress bar for uploading files */}
+                  {uploadFile.status === 'uploading' && (
+                    <div className="space-y-2">
+                      <Progress value={uploadFile.progress} className="h-3" />
+                      {getUploadDetails(uploadFile)}
+                    </div>
+                  )}
+
+                  {/* Error message */}
+                  {uploadFile.status === 'error' && uploadFile.error && (
+                    <div className="bg-red-50 border border-red-200 rounded p-2">
+                      <p className="text-xs text-red-600">{uploadFile.error}</p>
+                    </div>
+                  )}
+
+                  {/* Success message */}
+                  {uploadFile.status === 'completed' && (
+                    <div className="bg-green-50 border border-green-200 rounded p-2">
+                      <p className="text-xs text-green-600">
+                        อัพโหลดเสร็จสิ้น - หลักฐาน ID: {uploadFile.evidenceId}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Upload Notifications */}
+      <UploadNotifications 
+        notifications={notifications} 
+        onDismiss={removeNotification}
+        enableSound={true}
+      />
     </div>
   );
 }

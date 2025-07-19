@@ -347,7 +347,7 @@ export default function EvidenceManagePage() {
                     <SelectValue placeholder="All years" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All years</SelectItem>
+                    <SelectItem value="all">All years</SelectItem>
                     {academicYears.map((year) => (
                       <SelectItem key={year.id} value={year.id}>
                         {year.name}
@@ -364,7 +364,7 @@ export default function EvidenceManagePage() {
                     <SelectValue placeholder="All indicators" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All indicators</SelectItem>
+                    <SelectItem value="all">All indicators</SelectItem>
                     {subIndicators.map((si) => (
                       <SelectItem key={si.id} value={si.id}>
                         {si.code}: {si.name}
@@ -497,13 +497,13 @@ export default function EvidenceManagePage() {
                         
                         <TableCell>
                           <div className="flex gap-1">
-                            {item.evaluations.map((eval, index) => (
+                            {item.evaluations.map((evaluation, index) => (
                               <Badge 
                                 key={index} 
                                 variant="outline" 
-                                className={`text-xs ${getRoleBadgeColor(eval.evaluator.role)}`}
+                                className={`text-xs ${getRoleBadgeColor(evaluation.evaluator.role)}`}
                               >
-                                {eval.evaluator.role.replace('_', ' ')}
+                                {evaluation.evaluator.role.replace('_', ' ')}
                               </Badge>
                             ))}
                             {item.evaluations.length === 0 && (

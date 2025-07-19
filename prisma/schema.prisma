@@ -20,10 +20,16 @@ model User {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
+  // Notification preferences
+  emailNotifications    Boolean @default(true)
+  lineNotifications     Boolean @default(false)
+  deadlineReminderDays  Int     @default(7) // Days before deadline to send reminder
+
   // Relations
   uploadedEvidence Evidence[] @relation("EvidenceUploader")
   evaluations      Evaluation[]
   ownedSubIndicators SubIndicator[] @relation("SubIndicatorOwner")
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -151,10 +157,43 @@ model Evaluation {
   @@map("evaluations")
 }
 
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  sentAt      DateTime?        // When notification was actually sent
+  scheduledFor DateTime?       // For scheduled notifications
+  metadata    Json?            // Additional context data
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
 enum UserRole {
   TEACHER
   IQA_EVALUATOR
   EQA_EVALUATOR
   EXECUTIVE
   ADMIN
+}
+
+enum NotificationType {
+  UPLOAD_DEADLINE_REMINDER
+  EVALUATION_DEADLINE_REMINDER
+  UPLOAD_WINDOW_OPENING
+  UPLOAD_WINDOW_CLOSING
+  EVALUATION_WINDOW_OPENING
+  EVALUATION_WINDOW_CLOSING
+  EVALUATION_OVERDUE
+  ASSIGNMENT_NOTIFICATION
+  SYSTEM_ALERT
 }

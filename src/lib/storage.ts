@@ -1,18 +1,7 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { env } from "./env";
 import { randomUUID } from "crypto";
-
-export const s3Client = new S3Client({
-  region: env.STORAGE_REGION,
-  endpoint: env.STORAGE_ENDPOINT,
-  credentials: {
-    accessKeyId: env.STORAGE_ACCESS_KEY,
-    secretAccessKey: env.STORAGE_SECRET_KEY,
-  },
-  forcePathStyle: true, // Required for MinIO
-});
+import { writeFile, mkdir, readFile, unlink } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 export interface UploadResult {
   key: string;
@@ -30,44 +19,58 @@ export interface UploadOptions {
   size: number;
 }
 
-export class StorageService {
+export class FileStorageService {
+  private uploadDir: string;
+
+  constructor() {
+    this.uploadDir = path.join(process.cwd(), 'uploads', 'evidence');
+  }
+
   private generateStorageKey(options: UploadOptions): string {
     const { userId, academicYearId, subIndicatorId, originalName } = options;
     const timestamp = Date.now();
     const uuid = randomUUID();
     const ext = originalName.split('.').pop();
     
-    return `evidence/${academicYearId}/${subIndicatorId}/${userId}/${timestamp}-${uuid}.${ext}`;
+    return `${academicYearId}/${subIndicatorId}/${userId}/${timestamp}-${uuid}.${ext}`;
   }
 
   async uploadFile(buffer: Buffer, options: UploadOptions): Promise<UploadResult> {
-    const key = this.generateStorageKey(options);
-    
-    const upload = new Upload({
-      client: s3Client,
-      params: {
-        Bucket: env.STORAGE_BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: options.contentType,
-        Metadata: {
-          userId: options.userId,
-          academicYearId: options.academicYearId,
-          subIndicatorId: options.subIndicatorId,
-          originalName: options.originalName,
-          uploadTimestamp: Date.now().toString(),
-        },
-      },
-    });
+    try {
+      const key = this.generateStorageKey(options);
+      const filePath = path.join(this.uploadDir, key);
+      
+      // Create directory structure if it doesn't exist
+      await mkdir(path.dirname(filePath), { recursive: true });
 
-    const result = await upload.done();
-    
-    return {
-      key,
-      url: result.Location || `${env.STORAGE_ENDPOINT}/${env.STORAGE_BUCKET}/${key}`,
-      size: options.size,
-      contentType: options.contentType,
-    };
+      // Write file to disk
+      await writeFile(filePath, buffer);
+
+      return {
+        key,
+        url: `/api/evidence/download/${encodeURIComponent(key)}`,
+        size: options.size,
+        contentType: options.contentType,
+      };
+    } catch (error) {
+      console.error('File upload error:', error);
+      throw new Error('Failed to upload file to storage');
+    }
+  }
+
+  async getFile(key: string): Promise<Buffer> {
+    try {
+      const filePath = path.join(this.uploadDir, key);
+      
+      if (!existsSync(filePath)) {
+        throw new Error('File not found');
+      }
+
+      return await readFile(filePath);
+    } catch (error) {
+      console.error('File read error:', error);
+      throw new Error('Failed to read file from storage');
+    }
   }
 
   async uploadChunk(
@@ -78,7 +81,6 @@ export class StorageService {
     uploadId?: string
   ): Promise<{ uploadId: string; etag: string }> {
     // For simplicity, we'll use regular upload for now
-    // In production, implement multipart upload for large files
     const result = await this.uploadFile(buffer, options);
     
     return {
@@ -88,37 +90,44 @@ export class StorageService {
   }
 
   async getSignedDownloadUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    const command = new GetObjectCommand({
-      Bucket: env.STORAGE_BUCKET,
-      Key: key,
-    });
-
-    return await getSignedUrl(s3Client, command, { expiresIn });
+    // Return a download URL for local file storage
+    return `/api/evidence/download/${encodeURIComponent(key)}`;
   }
 
   async deleteFile(key: string): Promise<void> {
-    const command = new DeleteObjectCommand({
-      Bucket: env.STORAGE_BUCKET,
-      Key: key,
-    });
+    try {
+      const filePath = path.join(this.uploadDir, key);
+      
+      if (existsSync(filePath)) {
+        await unlink(filePath);
+      }
+    } catch (error) {
+      console.error('File deletion error:', error);
+      throw new Error('Failed to delete file from storage');
+    }
+  }
 
-    await s3Client.send(command);
+  async fileExists(key: string): Promise<boolean> {
+    const filePath = path.join(this.uploadDir, key);
+    return existsSync(filePath);
   }
 
   async getFileInfo(key: string) {
-    const command = new GetObjectCommand({
-      Bucket: env.STORAGE_BUCKET,
-      Key: key,
-    });
+    const filePath = path.join(this.uploadDir, key);
+    
+    if (!existsSync(filePath)) {
+      throw new Error('File not found');
+    }
 
-    const response = await s3Client.send(command);
+    const stats = await import('fs/promises').then(fs => fs.stat(filePath));
+    
     return {
-      size: response.ContentLength,
-      contentType: response.ContentType,
-      lastModified: response.LastModified,
-      metadata: response.Metadata,
+      size: stats.size,
+      contentType: 'application/octet-stream', // Default content type
+      lastModified: stats.mtime,
+      metadata: {},
     };
   }
 }
 
-export const storageService = new StorageService();
+export const storageService = new FileStorageService();

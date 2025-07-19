@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - parseInt(timeRange));
 
     // Build filters based on user role
-    let evidenceFilter: any = {
+    const evidenceFilter: any = {
       deletedAt: null,
       uploadedAt: {
         gte: startDate,
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    let evaluationFilter: any = {
+    const evaluationFilter: any = {
       evidence: {
         deletedAt: null
       },
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           _count: {
             select: {
-              evidence: true,
+              uploadedEvidence: true,
               evaluations: true
             }
           }
@@ -353,7 +353,7 @@ export async function GET(request: NextRequest) {
           u.email,
           u.role.replace('_', ' '),
           u.createdAt.toLocaleDateString(),
-          u._count.evidence,
+          u._count.uploadedEvidence,
           u._count.evaluations
         ])
       ];

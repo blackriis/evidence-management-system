@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { UserRole } from "@prisma/client";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/bcrypt-mock";
 
 const CreateUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get("isActive");
 
     // Build where clause
-    let where: any = {};
+    const where: any = {};
 
     if (role) {
       where.role = role;
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            evidence: true,
+            uploadedEvidence: true,
             evaluations: true
           }
         }
@@ -262,7 +262,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Hash password if provided
-    let updatePayload: any = { ...validatedData };
+    const updatePayload: any = { ...validatedData };
     if (validatedData.password) {
       updatePayload.password = await bcrypt.hash(validatedData.password, 12);
     }

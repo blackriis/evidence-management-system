@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get evaluation assignments (who has evaluated what)
-    let evaluationFilter: any = {};
+    const evaluationFilter: any = {};
     
     if (evaluatorId) {
       evaluationFilter.evaluatorId = evaluatorId;
@@ -176,13 +176,13 @@ export async function GET(request: NextRequest) {
       if (!evidence.academicYear.evaluationWindowOpen) return false;
       
       // For IQA evaluators - evidence needs IQA evaluation
-      const hasIQAEvaluation = evidence.evaluations.some(eval => 
-        eval.evaluator.role === UserRole.IQA_EVALUATOR
+      const hasIQAEvaluation = evidence.evaluations.some(evaluation => 
+        evaluation.evaluator.role === UserRole.IQA_EVALUATOR
       );
       
       // For EQA evaluators - evidence needs EQA evaluation (usually after IQA)
-      const hasEQAEvaluation = evidence.evaluations.some(eval => 
-        eval.evaluator.role === UserRole.EQA_EVALUATOR
+      const hasEQAEvaluation = evidence.evaluations.some(evaluation => 
+        evaluation.evaluator.role === UserRole.EQA_EVALUATOR
       );
 
       if (evaluatorType === "IQA") {
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
       targetEvidence = evidenceIds;
     } else {
       // Bulk assignment by academic year or sub-indicator
-      let evidenceFilter: any = { deletedAt: null };
+      const evidenceFilter: any = { deletedAt: null };
       
       if (academicYearId) {
         evidenceFilter.academicYearId = academicYearId;
@@ -401,7 +401,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Remove evaluations (this is a destructive action)
-    let deleteFilter: any = { evaluatorId };
+    const deleteFilter: any = { evaluatorId };
 
     if (evidenceId) {
       deleteFilter.evidenceId = evidenceId;

@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
     const unassignedSubIndicators = await db.subIndicator.findMany({
       where: {
         ownerId: null,
-        deletedAt: null,
         ...scopeFilter
       },
       include: {
@@ -233,16 +232,11 @@ export async function GET(request: NextRequest) {
         isActive: false,
         deletedAt: null,
         ownedSubIndicators: {
-          some: {
-            deletedAt: null
-          }
+          some: {}
         }
       },
       include: {
         ownedSubIndicators: {
-          where: {
-            deletedAt: null
-          },
           include: {
             indicator: {
               include: {
@@ -287,7 +281,6 @@ export async function GET(request: NextRequest) {
     // 6. Sub-indicators with low evidence submission rates
     const subIndicatorsWithLowEvidence = await db.subIndicator.findMany({
       where: {
-        deletedAt: null,
         ...scopeFilter
       },
       include: {

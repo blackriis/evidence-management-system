@@ -114,8 +114,8 @@ export function EvaluationList({
   
   // Filters
   const [search, setSearch] = useState("");
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYearId || "");
-  const [selectedSubIndicator, setSelectedSubIndicator] = useState(subIndicatorId || "");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYearId || "all");
+  const [selectedSubIndicator, setSelectedSubIndicator] = useState(subIndicatorId || "all");
   const [selectedEvaluator, setSelectedEvaluator] = useState(evaluatorId || "");
   const [sortBy, setSortBy] = useState("evaluatedAt");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -176,8 +176,8 @@ export function EvaluationList({
 
       if (evidenceId) params.append('evidenceId', evidenceId);
       if (selectedEvaluator) params.append('evaluatorId', selectedEvaluator);
-      if (selectedAcademicYear) params.append('academicYearId', selectedAcademicYear);
-      if (selectedSubIndicator) params.append('subIndicatorId', selectedSubIndicator);
+      if (selectedAcademicYear && selectedAcademicYear !== 'all') params.append('academicYearId', selectedAcademicYear);
+      if (selectedSubIndicator && selectedSubIndicator !== 'all') params.append('subIndicatorId', selectedSubIndicator);
 
       const response = await fetch(`/api/evaluations?${params}`);
       const data = await response.json();
@@ -356,7 +356,7 @@ export function EvaluationList({
                   <SelectValue placeholder="All academic years" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All academic years</SelectItem>
+                  <SelectItem value="all">All academic years</SelectItem>
                   {academicYears.map((year) => (
                     <SelectItem key={year.id} value={year.id}>
                       {year.name}
@@ -370,7 +370,7 @@ export function EvaluationList({
                   <SelectValue placeholder="All sub-indicators" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All sub-indicators</SelectItem>
+                  <SelectItem value="all">All sub-indicators</SelectItem>
                   {subIndicators.map((si) => (
                     <SelectItem key={si.id} value={si.id}>
                       {si.code}: {si.name}
@@ -543,8 +543,8 @@ export function EvaluationList({
                   Next
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

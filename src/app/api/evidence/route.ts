@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Build where clause based on user role and filters
-    let where: any = {
+    const where: any = {
       deletedAt: null,
     };
 

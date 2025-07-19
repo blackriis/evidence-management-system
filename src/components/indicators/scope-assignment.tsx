@@ -573,14 +573,14 @@ export function ScopeAssignment({ onAssignmentChange }: ScopeAssignmentProps) {
                     
                     <TableCell>
                       <Select
-                        value={subIndicator.owner?.id || ""}
-                        onValueChange={(value) => handleIndividualAssign(subIndicator.id, value || null)}
+                        value={subIndicator.owner?.id || "unassign"}
+                        onValueChange={(value) => handleIndividualAssign(subIndicator.id, value === "unassign" ? null : value)}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue placeholder="Assign..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Unassign</SelectItem>
+                          <SelectItem value="unassign">Unassign</SelectItem>
                           {teachers.map((teacher) => (
                             <SelectItem key={teacher.id} value={teacher.id}>
                               {teacher.name}

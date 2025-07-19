@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - parseInt(timeRange));
 
     // Build base filters based on user role
-    let evidenceFilter: any = {
+    const evidenceFilter: any = {
       deletedAt: null,
       uploadedAt: {
         gte: startDate,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    let evaluationFilter: any = {
+    const evaluationFilter: any = {
       evidence: {
         deletedAt: null
       },
@@ -116,6 +116,11 @@ export async function GET(request: NextRequest) {
         by: ['uploaderId'],
         where: evidenceFilter,
         _count: { id: true },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
         take: 10
       }),
       
@@ -124,6 +129,11 @@ export async function GET(request: NextRequest) {
         by: ['subIndicatorId'],
         where: evidenceFilter,
         _count: { id: true },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
         take: 10
       }),
       
@@ -132,6 +142,11 @@ export async function GET(request: NextRequest) {
         by: ['academicYearId'],
         where: evidenceFilter,
         _count: { id: true },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
         take: 5
       })
     ]);
@@ -162,6 +177,11 @@ export async function GET(request: NextRequest) {
         by: ['evaluatorId'],
         where: evaluationFilter,
         _count: { id: true },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
         take: 10
       }),
       
@@ -198,7 +218,7 @@ export async function GET(request: NextRequest) {
           deletedAt: null,
           OR: [
             {
-              evidence: {
+              uploadedEvidence: {
                 some: {
                   uploadedAt: { gte: startDate },
                   deletedAt: null

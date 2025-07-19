@@ -414,7 +414,7 @@ export function EvaluatorAssignments() {
                 <SelectValue placeholder="All academic years" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All academic years</SelectItem>
+                <SelectItem value="all">All academic years</SelectItem>
                 {academicYears.map((year) => (
                   <SelectItem key={year.id} value={year.id}>
                     {year.name}
@@ -428,7 +428,7 @@ export function EvaluatorAssignments() {
                 <SelectValue placeholder="All sub-indicators" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All sub-indicators</SelectItem>
+                <SelectItem value="all">All sub-indicators</SelectItem>
                 {subIndicators.map((si) => (
                   <SelectItem key={si.id} value={si.id}>
                     {si.code}: {si.name}
@@ -442,7 +442,7 @@ export function EvaluatorAssignments() {
                 <SelectValue placeholder="All evaluator types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="IQA">IQA Evaluators</SelectItem>
                 <SelectItem value="EQA">EQA Evaluators</SelectItem>
               </SelectContent>

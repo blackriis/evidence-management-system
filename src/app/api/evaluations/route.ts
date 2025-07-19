@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const includeEvidence = searchParams.get("includeEvidence") === "true";
 
     // Build base where clause
-    let where: any = {};
+    const where: any = {};
 
     if (evidenceId) {
       where.evidenceId = evidenceId;

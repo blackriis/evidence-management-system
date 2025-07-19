@@ -153,11 +153,11 @@ export default function EvaluationPage() {
         // Apply evaluation status filter
         if (filterStatus === "evaluated") {
           filteredEvidence = filteredEvidence.filter((evidence: Evidence) => 
-            evidence.evaluations.some(eval => eval.evaluator.id === user?.id)
+            evidence.evaluations.some(evaluation => evaluation.evaluator.id === user?.id)
           );
         } else if (filterStatus === "pending") {
           filteredEvidence = filteredEvidence.filter((evidence: Evidence) => 
-            !evidence.evaluations.some(eval => eval.evaluator.id === user?.id)
+            !evidence.evaluations.some(evaluation => evaluation.evaluator.id === user?.id)
           );
         }
 
@@ -204,7 +204,7 @@ export default function EvaluationPage() {
   };
 
   const getUserEvaluation = (evidence: Evidence) => {
-    return evidence.evaluations.find(eval => eval.evaluator.id === user?.id);
+    return evidence.evaluations.find(evaluation => evaluation.evaluator.id === user?.id);
   };
 
   const getEvaluationStatus = (evidence: Evidence) => {
@@ -380,7 +380,7 @@ export default function EvaluationPage() {
                       <SelectValue placeholder="All academic years" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All academic years</SelectItem>
+                      <SelectItem value="all">All academic years</SelectItem>
                       {academicYears.map((year) => (
                         <SelectItem key={year.id} value={year.id}>
                           {year.name}
@@ -394,7 +394,7 @@ export default function EvaluationPage() {
                       <SelectValue placeholder="All sub-indicators" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All sub-indicators</SelectItem>
+                      <SelectItem value="all">All sub-indicators</SelectItem>
                       {subIndicators.map((si) => (
                         <SelectItem key={si.id} value={si.id}>
                           {si.code}: {si.name}
