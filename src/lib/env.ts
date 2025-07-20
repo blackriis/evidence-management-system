@@ -37,7 +37,28 @@ export type Env = z.infer<typeof envSchema>;
 let env: Env;
 
 try {
-  env = envSchema.parse(process.env);
+  // Skip validation during build if SKIP_ENV_VALIDATION is set
+  if (process.env.SKIP_ENV_VALIDATION === 'true') {
+    console.log('⚠️ Skipping environment validation for build');
+    env = {
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/db',
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'build-time-secret',
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+      STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT || 'http://localhost:9000',
+      STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY || 'build-key',
+      STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY || 'build-secret',
+      STORAGE_BUCKET: process.env.STORAGE_BUCKET || 'evidence-files',
+      STORAGE_REGION: process.env.STORAGE_REGION || 'us-east-1',
+      RESEND_API_KEY: process.env.RESEND_API_KEY,
+      FROM_EMAIL: process.env.FROM_EMAIL,
+      LINE_NOTIFY_TOKEN: process.env.LINE_NOTIFY_TOKEN,
+      REDIS_URL: process.env.REDIS_URL,
+      NODE_ENV: (process.env.NODE_ENV as any) || 'development',
+      APP_URL: process.env.APP_URL || 'http://localhost:3000',
+    };
+  } else {
+    env = envSchema.parse(process.env);
+  }
 } catch (error) {
   console.error("❌ Invalid environment variables:", error);
   throw new Error("Invalid environment variables");

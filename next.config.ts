@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Force HTTP protocol for static assets to prevent mixed content errors
-  assetPrefix: process.env.NODE_ENV === 'production' && !process.env.HTTPS_ENABLED ? 'http://31.97.76.172:3000' : undefined,
+  assetPrefix: process.env.NODE_ENV === 'production' && !process.env.HTTPS_ENABLED && process.env.ASSET_PREFIX ? process.env.ASSET_PREFIX : undefined,
   
   // Performance optimizations
   experimental: {
@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   },
 
   // Caching configuration
-  cacheHandler: process.env.NODE_ENV === 'production' ? require.resolve('./cache-handler.js') : undefined,
+  cacheHandler: process.env.NODE_ENV === 'production' && !process.env.DISABLE_REDIS_CACHE && process.env.REDIS_URL ? require.resolve('./cache-handler.js') : undefined,
   cacheMaxMemorySize: 50 * 1024 * 1024, // 50MB
 
   // Security headers configuration with caching optimizations

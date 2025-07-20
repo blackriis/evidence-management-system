@@ -1,4 +1,9 @@
-const Redis = require('ioredis');
+let Redis;
+try {
+  Redis = require('ioredis');
+} catch (error) {
+  console.warn('Redis not available, using fallback cache handler');
+}
 
 class CustomCacheHandler {
   constructor(options) {
@@ -8,8 +13,8 @@ class CustomCacheHandler {
   }
 
   initRedis() {
-    if (!process.env.REDIS_URL) {
-      console.warn('Redis URL not configured, using default Next.js cache');
+    if (!Redis || !process.env.REDIS_URL || process.env.DISABLE_REDIS_CACHE === 'true') {
+      console.warn('Redis not available or disabled, using default Next.js cache');
       return;
     }
 
@@ -22,9 +27,11 @@ class CustomCacheHandler {
 
       this.redis.on('error', (err) => {
         console.error('Redis cache handler error:', err);
+        this.redis = null; // Disable Redis on error
       });
     } catch (error) {
       console.error('Failed to initialize Redis cache handler:', error);
+      this.redis = null;
     }
   }
 

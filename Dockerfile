@@ -29,8 +29,28 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Generate Prisma client
 RUN npx prisma generate
 
+# Set build-time environment variables
+ENV SKIP_ENV_VALIDATION=true
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV DISABLE_REDIS_CACHE=true
+ENV HTTPS_ENABLED=false
+
+# Create minimal environment for build
+RUN echo 'DATABASE_URL="postgresql://user:pass@localhost:5432/db"' > .env.local && \
+    echo 'NEXTAUTH_SECRET="build-time-secret-at-least-32-chars-long"' >> .env.local && \
+    echo 'NEXTAUTH_URL="http://localhost:3000"' >> .env.local && \
+    echo 'STORAGE_ENDPOINT="http://localhost:9000"' >> .env.local && \
+    echo 'STORAGE_ACCESS_KEY="build-key"' >> .env.local && \
+    echo 'STORAGE_SECRET_KEY="build-secret"' >> .env.local && \
+    echo 'STORAGE_BUCKET="evidence-files"' >> .env.local && \
+    echo 'STORAGE_REGION="us-east-1"' >> .env.local
+
 # Build the application
 RUN npm run build
+
+# Clean up build environment
+RUN rm -f .env.local
 
 # Production image, copy all the files and run next
 FROM base AS runner
