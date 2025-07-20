@@ -82,5 +82,4 @@ config/
 jest.config.js
 jest.setup.js
 playwright.config.ts
-tsconfig.json
 tsconfig.tsbuildinfo

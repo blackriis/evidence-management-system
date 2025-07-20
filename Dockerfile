@@ -46,16 +46,13 @@ RUN echo 'DATABASE_URL="postgresql://user:pass@localhost:5432/db"' > .env.local 
     echo 'STORAGE_BUCKET="evidence-files"' >> .env.local && \
     echo 'STORAGE_REGION="us-east-1"' >> .env.local
 
-# Build the application with detailed error logging
-RUN npm run build 2>&1 || (echo "❌ Build failed - showing detailed logs:" && \
-    echo "📁 Directory contents:" && ls -la && \
-    echo "📦 Package.json scripts:" && cat package.json | grep -A 10 "scripts" && \
-    echo "📋 Environment variables:" && env | grep -E '(NODE_ENV|NEXT_|SKIP_|DATABASE_)' | sort && \
-    echo "🔍 Node modules status:" && ls -la node_modules | head -10 && \
-    echo "⚙️  TypeScript config:" && cat tsconfig.json && \
-    echo "🏗️  Next.js config exists:" && ls -la next.config.* && \
-    echo "📝 Recent npm logs:" && cat /root/.npm/_logs/*.log 2>/dev/null | tail -100 || echo "No npm logs found" && \
-    exit 1)
+# Show what files we have before building
+RUN echo "📁 Files in /app:" && ls -la
+RUN echo "📁 Source files:" && find src -name "*.ts" -o -name "*.tsx" | head -10
+RUN echo "⚙️  Config files:" && ls -la *.json *.ts *.js 2>/dev/null || echo "No config files found"
+
+# Build the application
+RUN npm run build
 
 # Clean up build environment
 RUN rm -f .env.local
