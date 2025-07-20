@@ -3,8 +3,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat python3 make g++ wget
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -20,14 +19,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
-
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Generate Prisma client
-RUN npx prisma generate
 
 # Set build-time environment variables
 ENV SKIP_ENV_VALIDATION=true
@@ -51,10 +42,8 @@ RUN echo 'DATABASE_URL="postgresql://user:pass@localhost:5432/db"' > .env.local 
     echo 'FROM_EMAIL="noreply@localhost.com"' >> .env.local && \
     echo 'LINE_NOTIFY_TOKEN="build-token"' >> .env.local
 
-# Show what files we have before building
-RUN echo "📁 Files in /app:" && ls -la
-RUN echo "📁 Source files:" && find src -name "*.ts" -o -name "*.tsx" | head -10
-RUN echo "⚙️  Config files:" && ls -la *.json *.ts *.js 2>/dev/null || echo "No config files found"
+# Generate Prisma client
+RUN npx prisma generate
 
 # Build the application
 RUN npm run build
@@ -66,8 +55,8 @@ RUN rm -f .env.local
 FROM base AS runner
 WORKDIR /app
 
-# Install wget for health checks and npm for database operations
-RUN apk add --no-cache wget npm
+# Install npm for database operations
+RUN apk add --no-cache npm
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -86,7 +75,6 @@ RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
 # Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
@@ -95,24 +83,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-# Generate Prisma client in production (backup)
-RUN npx prisma generate || echo "Prisma generate failed, using built version"
-
 USER nextjs
 
-EXPOSE 8080
+EXPOSE 3000
 
-ENV PORT=8080
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Debug startup and server.js
-CMD echo "Starting container..." && \
-    echo "Working directory: $(pwd)" && \
-    echo "Files: $(ls -la)" && \
-    echo "Node modules: $(ls -la node_modules/@prisma 2>/dev/null || echo 'No Prisma')" && \
-    echo "Starting server..." && \
-    node server.js
+# Simple startup
+CMD ["node", "server.js"]
