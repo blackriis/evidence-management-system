@@ -16,14 +16,14 @@ const envSchema = z.object({
   STORAGE_REGION: z.string().default("us-east-1"),
 
   // Email Service
-  RESEND_API_KEY: z.string().min(1).optional(),
-  FROM_EMAIL: z.string().email().optional(),
+  RESEND_API_KEY: z.string().min(1).default("build-key"),
+  FROM_EMAIL: z.string().email().default("noreply@localhost.com"),
 
   // Line Notify
-  LINE_NOTIFY_TOKEN: z.string().min(1).optional(),
+  LINE_NOTIFY_TOKEN: z.string().min(1).default("build-token"),
 
   // Redis
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: z.string().url().default("redis://localhost:6379"),
 
   // Application
   NODE_ENV: z
