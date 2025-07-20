@@ -6,8 +6,6 @@ const nextConfig: NextConfig = {
   
   // Performance optimizations
   experimental: {
-    // Enable server components caching
-    serverComponentsExternalPackages: ['bcrypt', 'ioredis'],
     // Optimize bundle size
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
@@ -125,7 +123,7 @@ const nextConfig: NextConfig = {
   },
 
   // External packages for server components
-  serverExternalPackages: ['bcrypt'],
+  serverExternalPackages: ['bcrypt', 'ioredis'],
   
   // Enable standalone output for Docker
   output: 'standalone',
