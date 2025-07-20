@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ScopeMiddleware } from "@/lib/scope-middleware";
 import { EVALUATION_SCORES } from "@/lib/constants";
 import { UserRole } from "@prisma/client";
+import { AuditLogger } from "@/lib/audit-logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -335,6 +336,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Log evaluation action
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.logEvaluation(
+      existingEvaluation ? 'UPDATE' : 'CREATE',
+      evaluation.id,
+      session.user.id,
+      existingEvaluation ? {
+        qualitativeScore: existingEvaluation.qualitativeScore,
+        quantitativeScore: existingEvaluation.quantitativeScore,
+        comments: existingEvaluation.comments,
+      } : null,
+      {
+        qualitativeScore: evaluation.qualitativeScore,
+        quantitativeScore: evaluation.quantitativeScore,
+        comments: evaluation.comments,
+        evidenceId: evaluation.evidenceId,
+      },
+      context
+    );
+
     return NextResponse.json({
       success: true,
       evaluation,
@@ -452,6 +473,25 @@ export async function PUT(request: NextRequest) {
       }
     });
 
+    // Log evaluation update
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.logEvaluation(
+      'UPDATE',
+      evaluation.id,
+      session.user.id,
+      {
+        qualitativeScore: existingEvaluation.qualitativeScore,
+        quantitativeScore: existingEvaluation.quantitativeScore,
+        comments: existingEvaluation.comments,
+      },
+      {
+        qualitativeScore: evaluation.qualitativeScore,
+        quantitativeScore: evaluation.quantitativeScore,
+        comments: evaluation.comments,
+      },
+      context
+    );
+
     return NextResponse.json({
       success: true,
       evaluation
@@ -508,6 +548,22 @@ export async function DELETE(request: NextRequest) {
     if (!evaluation.evidence.academicYear.evaluationWindowOpen) {
       return NextResponse.json({ error: "Evaluation window is not open" }, { status: 400 });
     }
+
+    // Log evaluation deletion
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.logEvaluation(
+      'DELETE',
+      evaluationId,
+      session.user.id,
+      {
+        qualitativeScore: evaluation.qualitativeScore,
+        quantitativeScore: evaluation.quantitativeScore,
+        comments: evaluation.comments,
+        evidenceId: evaluation.evidenceId,
+      },
+      null,
+      context
+    );
 
     // Delete evaluation
     await db.evaluation.delete({

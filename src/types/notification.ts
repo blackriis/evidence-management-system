@@ -68,4 +68,9 @@ export interface NotificationJob {
 export interface NotificationHistory {
   id: string
   userId: string
-  eventType: NotificationEventTy
+  eventType: NotificationEventType
+  channel: NotificationChannel
+  status: 'sent' | 'failed' | 'bounced'
+  sentAt: Date
+  error?: string
+}

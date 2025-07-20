@@ -1,0 +1,91 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Length 1000
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Large Test Document for Performance Testing) Tj
+0 -20 Td
+(This document contains repeated content to simulate a larger file size.) Tj
+0 -20 Td
+(Lorem ipsum dolor sit amet, consectetur adipiscing elit.) Tj
+0 -20 Td
+(Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.) Tj
+0 -20 Td
+(Ut enim ad minim veniam, quis nostrud exercitation ullamco.) Tj
+0 -20 Td
+(Duis aute irure dolor in reprehenderit in voluptate velit esse.) Tj
+0 -20 Td
+(Excepteur sint occaecat cupidatat non proident, sunt in culpa.) Tj
+0 -20 Td
+(Qui officia deserunt mollit anim id est laborum.) Tj
+0 -20 Td
+(Sed ut perspiciatis unde omnis iste natus error sit voluptatem.) Tj
+0 -20 Td
+(Accusantium doloremque laudantium, totam rem aperiam.) Tj
+0 -20 Td
+(Eaque ipsa quae ab illo inventore veritatis et quasi architecto.) Tj
+0 -20 Td
+(Beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem.) Tj
+0 -20 Td
+(Quia voluptas sit aspernatur aut odit aut fugit.) Tj
+0 -20 Td
+(Sed quia consequuntur magni dolores eos qui ratione.) Tj
+0 -20 Td
+(Voluptatem sequi nesciunt. Neque porro quisquam est.) Tj
+0 -20 Td
+(Qui dolorem ipsum quia dolor sit amet, consectetur.) Tj
+0 -20 Td
+(Adipisci velit, sed quia non numquam eius modi tempora.) Tj
+0 -20 Td
+(Incidunt ut labore et dolore magnam aliquam quaerat.) Tj
+0 -20 Td
+(Voluptatem. Ut enim ad minima veniam, quis nostrum.) Tj
+0 -20 Td
+(Exercitationem ullam corporis suscipit laboriosam.) Tj
+ET
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000206 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+1300
+%%EOF

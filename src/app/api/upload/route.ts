@@ -6,8 +6,12 @@ import { storageService } from "@/lib/storage";
 import { FileValidator } from "@/lib/file-validation";
 import { FILE_UPLOAD_LIMITS } from "@/lib/constants";
 import { UserRole } from "@prisma/client";
+import { AuditLogger } from "@/lib/audit-logger";
+import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limiter";
+import { withSecurityHeaders, withCSRFProtection } from "@/lib/security-headers";
+import { InputSanitizer } from "@/lib/input-sanitizer";
 
-export async function POST(request: NextRequest) {
+const postHandler = async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -78,18 +82,37 @@ export async function POST(request: NextRequest) {
     const currentQuotaUsed = userEvidenceSize._sum.fileSize || 0;
     const availableQuota = FILE_UPLOAD_LIMITS.MAX_FILE_SIZE - currentQuotaUsed;
 
-    // Convert file to buffer and validate
+    // Sanitize filename
+    const sanitizedFilename = InputSanitizer.sanitizeFilename(file.name);
+    
+    // Convert file to buffer and validate with enhanced security
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileInfo = {
-      name: file.name,
+      name: sanitizedFilename,
       size: file.size,
       type: file.type,
       buffer
     };
 
-    const validationResult = FileValidator.validateFile(fileInfo);
+    const validationResult = await FileValidator.validateFileWithSecurity(fileInfo);
     
     if (!validationResult.isValid) {
+      // Log security violations
+      if (validationResult.securityScan && !validationResult.securityScan.isSafe) {
+        const context = AuditLogger.extractContext(request, session.user.id);
+        await AuditLogger.logSecurity(
+          'FILE_UPLOAD_BLOCKED',
+          session.user.id,
+          {
+            filename: sanitizedFilename,
+            threats: validationResult.securityScan.threats,
+            fileSize: file.size,
+            mimeType: file.type,
+          },
+          context
+        );
+      }
+
       return NextResponse.json({ 
         error: "File validation failed", 
         details: validationResult.errors 
@@ -142,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     const evidence = await db.evidence.create({
       data: {
-        filename: file.name,
+        filename: sanitizedFilename,
         originalName: file.name,
         fileSize: file.size,
         mimeType: file.type,
@@ -170,7 +193,28 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
+    // Log evidence upload
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.logEvidence(
+      'UPLOAD',
+      evidence.id,
+      session.user.id,
+      existingEvidence ? {
+        previousVersion: existingEvidence.version,
+        previousFilename: existingEvidence.filename,
+      } : null,
+      {
+        filename: evidence.filename,
+        fileSize: evidence.fileSize,
+        mimeType: evidence.mimeType,
+        version: evidence.version,
+        subIndicatorId: evidence.subIndicatorId,
+        academicYearId: evidence.academicYearId,
+      },
+      context
+    );
+
+    const response = NextResponse.json({
       success: true,
       evidence: {
         id: evidence.id,
@@ -181,8 +225,11 @@ export async function POST(request: NextRequest) {
         uploadedAt: evidence.uploadedAt,
         subIndicator: evidence.subIndicator
       },
-      warnings: validationResult.warnings
+      warnings: validationResult.warnings,
+      securityWarnings: validationResult.securityScan?.warnings || []
     });
+
+    return response;
 
   } catch (error) {
     console.error("Upload error:", error);
@@ -192,7 +239,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+const getHandler = async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -277,3 +324,14 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+// Apply security middleware to route handlers
+export const POST = withSecurityHeaders()(
+  withCSRFProtection()(
+    withRateLimit(RATE_LIMIT_CONFIGS.UPLOAD)(postHandler)
+  )
+);
+
+export const GET = withSecurityHeaders()(
+  withRateLimit(RATE_LIMIT_CONFIGS.API)(getHandler)
+);

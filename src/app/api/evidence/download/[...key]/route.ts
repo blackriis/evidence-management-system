@@ -11,7 +11,7 @@ interface Params {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Params }
+  { params }: { params: Promise<Params> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,8 +20,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { key: keyArray } = await params;
     // Reconstruct the full key from the dynamic route segments
-    const key = decodeURIComponent(params.key.join('/'));
+    const key = decodeURIComponent(keyArray.join('/'));
 
     // Find the evidence record to verify access permissions
     const evidence = await db.evidence.findFirst({

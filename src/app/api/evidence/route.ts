@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { UserRole } from "@prisma/client";
+import { AuditLogger } from "@/lib/audit-logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -162,6 +163,19 @@ export async function GET(request: NextRequest) {
       })
     };
 
+    // Log evidence access
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.log({
+      userId: session.user.id,
+      action: 'EXPORT', // Viewing evidence list is considered an export action
+      resource: 'evidence',
+      metadata: {
+        filters: { academicYearId, subIndicatorId, uploaderId, search },
+        resultCount: evidence.length,
+        userRole: user.role,
+      },
+    }, context);
+
     return NextResponse.json({
       evidence,
       pagination: {
@@ -237,11 +251,31 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
+    // Get evidence data before deletion for audit log
+    const evidenceData = await db.evidence.findUnique({
+      where: { id: evidenceId },
+      include: {
+        uploader: { select: { name: true, email: true } },
+        subIndicator: { select: { name: true, code: true } }
+      }
+    });
+
     // Soft delete the evidence
     await db.evidence.update({
       where: { id: evidenceId },
       data: { deletedAt: new Date() }
     });
+
+    // Log evidence deletion
+    const context = AuditLogger.extractContext(request, session.user.id);
+    await AuditLogger.logEvidence(
+      'DELETE',
+      evidenceId,
+      session.user.id,
+      evidenceData,
+      { deletedAt: new Date() },
+      context
+    );
 
     return NextResponse.json({ success: true });
 

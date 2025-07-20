@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
+import { AuditLogger } from "@/lib/audit-logger";
 
 // Define UserRole enum locally to avoid import issues
 enum UserRole {
@@ -131,11 +132,33 @@ export const authOptions: NextAuthOptions = {
     signOut: "/auth/signout",
   },
   events: {
-    async signIn({ user, account, profile, isNewUser }) {
+    async signIn({ user }) {
       console.log(`User ${user.email} signed in with role ${user.role}`);
+      
+      // Log successful login
+      try {
+        await AuditLogger.logAuth('LOGIN', user.id, {
+          userId: user.id,
+          // Note: We don't have access to request context here
+          // This could be enhanced by passing context through the auth flow
+        });
+      } catch (error) {
+        console.error('Failed to log sign-in audit:', error);
+      }
     },
     async signOut({ token }) {
       console.log(`User ${token?.email} signed out`);
+      
+      // Log logout
+      try {
+        if (token?.id) {
+          await AuditLogger.logAuth('LOGOUT', token.id as string, {
+            userId: token.id as string,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to log sign-out audit:', error);
+      }
     },
   },
   debug: process.env.NODE_ENV === "development",

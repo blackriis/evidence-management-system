@@ -1,0 +1,150 @@
+# Production File Storage Configuration
+# This configuration supports MinIO, AWS S3, and Cloudflare R2
+
+storage:
+  # Primary storage configuration
+  primary:
+    provider: "minio" # Options: minio, s3, r2
+    endpoint: "${STORAGE_ENDPOINT}"
+    access_key: "${STORAGE_ACCESS_KEY}"
+    secret_key: "${STORAGE_SECRET_KEY}"
+    bucket: "${STORAGE_BUCKET}"
+    region: "${STORAGE_REGION}"
+    
+    # Security settings
+    force_path_style: true
+    use_ssl: true
+    
+    # Performance settings
+    max_concurrent_uploads: 10
+    chunk_size: "5MB"
+    max_file_size: "100MB"
+    
+    # Backup settings
+    versioning_enabled: true
+    lifecycle_policy:
+      - rule_id: "evidence_retention"
+        status: "Enabled"
+        expiration_days: 2555 # ~7 years
+        noncurrent_version_expiration_days: 365
+      - rule_id: "incomplete_multipart_cleanup"
+        status: "Enabled"
+        abort_incomplete_multipart_upload_days: 7
+
+  # Backup storage configuration (optional secondary storage)
+  backup:
+    provider: "s3" # Different provider for redundancy
+    endpoint: "${BACKUP_STORAGE_ENDPOINT}"
+    access_key: "${BACKUP_STORAGE_ACCESS_KEY}"
+    secret_key: "${BACKUP_STORAGE_SECRET_KEY}"
+    bucket: "${BACKUP_STORAGE_BUCKET}"
+    region: "${BACKUP_STORAGE_REGION}"
+    
+    # Backup schedule
+    daily_backup: true
+    backup_retention_days: 2555 # ~7 years
+    
+    # Disaster recovery settings
+    cross_region_replication: true
+    backup_verification: true
+
+# File validation and security
+security:
+  allowed_mime_types:
+    - "application/pdf"
+    - "application/msword"
+    - "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    - "application/vnd.ms-excel"
+    - "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    - "application/vnd.ms-powerpoint"
+    - "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    - "image/jpeg"
+    - "image/png"
+    - "image/gif"
+    - "text/plain"
+    - "application/zip"
+    - "application/x-rar-compressed"
+  
+  max_file_size: 104857600 # 100MB in bytes
+  virus_scanning: true
+  content_type_validation: true
+  filename_sanitization: true
+  
+  # Quarantine settings for suspicious files
+  quarantine:
+    enabled: true
+    retention_days: 30
+    notification_enabled: true
+
+# Monitoring and alerting
+monitoring:
+  storage_usage_threshold: 80 # Percentage
+  backup_failure_alerts: true
+  performance_monitoring: true
+  
+  # Metrics to track
+  metrics:
+    - storage_usage
+    - upload_success_rate
+    - download_response_time
+    - backup_status
+    - virus_scan_results
+    - file_access_patterns
+
+# CDN configuration for file delivery
+cdn:
+  enabled: true
+  provider: "cloudflare" # Options: cloudflare, aws_cloudfront, custom
+  domain: "${CDN_DOMAIN}"
+  cache_ttl: 86400 # 24 hours
+  
+  # Security settings
+  signed_urls: true
+  url_expiration: 3600 # 1 hour
+  
+  # Performance settings
+  compression: true
+  image_optimization: true
+
+# Disaster recovery configuration
+disaster_recovery:
+  # Recovery Time Objective (RTO) and Recovery Point Objective (RPO)
+  rto_hours: 4
+  rpo_hours: 1
+  
+  # Backup verification
+  backup_verification_schedule: "daily"
+  restore_testing_schedule: "monthly"
+  
+  # Geographic distribution
+  primary_region: "${PRIMARY_REGION}"
+  backup_regions:
+    - "${BACKUP_REGION_1}"
+    - "${BACKUP_REGION_2}"
+  
+  # Failover settings
+  automatic_failover: false # Manual failover for safety
+  failover_notification: true
+  
+  # Data integrity
+  checksum_verification: true
+  corruption_detection: true
+  
+# Compliance and audit
+compliance:
+  # Data retention policies
+  evidence_retention_years: 7
+  audit_log_retention_years: 7
+  
+  # Encryption settings
+  encryption_at_rest: true
+  encryption_in_transit: true
+  key_rotation_days: 90
+  
+  # Access logging
+  access_logging: true
+  log_retention_days: 2555 # ~7 years
+  
+  # Privacy settings
+  data_anonymization: false # Keep for audit trail
+  right_to_deletion: false # Educational records exception

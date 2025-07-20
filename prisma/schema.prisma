@@ -30,6 +30,7 @@ model User {
   evaluations      Evaluation[]
   ownedSubIndicators SubIndicator[] @relation("SubIndicatorOwner")
   notifications    Notification[]
+  auditLogs        AuditLog[]
 
   @@map("users")
 }
@@ -178,6 +179,27 @@ model Notification {
   @@map("notifications")
 }
 
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?     // Nullable for system actions
+  action      AuditAction
+  resource    String      // Table/resource name (e.g., "evidence", "user", "evaluation")
+  resourceId  String?     // ID of the affected resource
+  oldValues   Json?       // Previous values for updates
+  newValues   Json?       // New values for creates/updates
+  metadata    Json?       // Additional context (IP address, user agent, etc.)
+  timestamp   DateTime    @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
 enum UserRole {
   TEACHER
   IQA_EVALUATOR
@@ -196,4 +218,25 @@ enum NotificationType {
   EVALUATION_OVERDUE
   ASSIGNMENT_NOTIFICATION
   SYSTEM_ALERT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  UPLOAD
+  DOWNLOAD
+  EVALUATE
+  ASSIGN
+  RESTORE
+  EXPORT
+  IMPORT
+  SYSTEM_CONFIG
+  SECURITY_VIOLATION
+  RATE_LIMIT_EXCEEDED
+  CSRF_VIOLATION
+  MALWARE_DETECTED
+  UNAUTHORIZED_ACCESS
 }

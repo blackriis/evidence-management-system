@@ -1,4 +1,16 @@
-import { randomUUID } from "crypto";
+// Edge runtime compatible UUID generation
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  } else {
+    // Fallback UUID v4 implementation
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+};
 import { writeFile, mkdir, readFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -29,7 +41,7 @@ export class FileStorageService {
   private generateStorageKey(options: UploadOptions): string {
     const { userId, academicYearId, subIndicatorId, originalName } = options;
     const timestamp = Date.now();
-    const uuid = randomUUID();
+    const uuid = generateUUID();
     const ext = originalName.split('.').pop();
     
     return `${academicYearId}/${subIndicatorId}/${userId}/${timestamp}-${uuid}.${ext}`;
@@ -84,7 +96,7 @@ export class FileStorageService {
     const result = await this.uploadFile(buffer, options);
     
     return {
-      uploadId: uploadId || randomUUID(),
+      uploadId: uploadId || generateUUID(),
       etag: result.key,
     };
   }

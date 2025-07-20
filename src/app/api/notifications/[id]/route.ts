@@ -10,7 +10,7 @@ interface RouteParams {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: { params: Promise<RouteParams['params']> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,9 +23,10 @@ export async function PATCH(
     }
 
     const { action } = await request.json();
+    const { id } = await params;
 
     if (action === 'markAsRead') {
-      await NotificationService.markAsRead(params.id, session.user.id);
+      await NotificationService.markAsRead(id, session.user.id);
       return NextResponse.json({ message: 'Notification marked as read' });
     }
 

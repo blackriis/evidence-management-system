@@ -1,0 +1,108 @@
+# Prometheus Configuration for Evidence Management System
+# Monitoring and metrics collection
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'evidence-management-system'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Next.js Application
+  - job_name: 'evidence-app'
+    static_configs:
+      - targets: ['app:3000']
+    scrape_interval: 15s
+    metrics_path: /api/metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # PostgreSQL Database
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      dbname: ['evidence_management']
+
+  # Redis Cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # MinIO Storage
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    scrape_interval: 30s
+    metrics_path: /minio/v2/metrics/cluster
+
+  # Nginx Reverse Proxy
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    scrape_interval: 30s
+    metrics_path: /nginx_status
+
+  # Node Exporter (System metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # Docker containers
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9323']
+    scrape_interval: 30s
+
+# Remote write configuration (for long-term storage)
+remote_write:
+  - url: "http://victoriametrics:8428/api/v1/write"
+    queue_config:
+      max_samples_per_send: 10000
+      batch_send_deadline: 5s
+      max_shards: 200
+      min_shards: 1
+      max_backoff: 100ms
+      min_backoff: 10ms
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 30d
+    retention.size: 10GB
+    wal-compression: true
+
+# Web configuration
+web:
+  console.templates: /etc/prometheus/consoles
+  console.libraries: /etc/prometheus/console_libraries
+  enable-lifecycle: true
+  enable-admin-api: true

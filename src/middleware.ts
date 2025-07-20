@@ -1,6 +1,8 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
+import { SecurityHeaders, CSRFProtection } from "@/lib/security-headers";
+import { rateLimiter, RATE_LIMIT_CONFIGS } from "@/lib/rate-limiter";
 
 // Define route access rules
 const routeAccessRules = {
@@ -45,13 +47,79 @@ function checkRouteAccess(pathname: string, userRole: UserRole): boolean {
 }
 
 export default withAuth(
-  function middleware(req) {
+  async function middleware(req) {
     const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
 
+    // Apply rate limiting for API routes
+    if (pathname.startsWith('/api/')) {
+      let rateLimitConfig = RATE_LIMIT_CONFIGS.API;
+      
+      // Apply specific rate limits based on endpoint
+      if (pathname.startsWith('/api/auth/')) {
+        rateLimitConfig = RATE_LIMIT_CONFIGS.AUTH;
+      } else if (pathname.startsWith('/api/upload')) {
+        rateLimitConfig = RATE_LIMIT_CONFIGS.UPLOAD;
+      } else if (pathname.startsWith('/api/admin/')) {
+        rateLimitConfig = RATE_LIMIT_CONFIGS.ADMIN;
+      } else if (pathname.includes('/export')) {
+        rateLimitConfig = RATE_LIMIT_CONFIGS.EXPORT;
+      }
+
+      const rateLimitResult = await rateLimiter.checkRateLimit(req, rateLimitConfig);
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          {
+            error: "Too many requests",
+            message: "Rate limit exceeded. Please try again later.",
+            retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+          },
+          { 
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': rateLimitConfig.maxRequests.toString(),
+              'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+              'X-RateLimit-Reset': Math.ceil(rateLimitResult.resetTime / 1000).toString(),
+              'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
+            }
+          }
+        );
+      }
+    }
+
+    // CSRF Protection for state-changing requests (disabled in development)
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && pathname.startsWith('/api/') && process.env.NODE_ENV === 'production') {
+      const csrfResponse = await CSRFProtection.middleware()(req);
+      if (csrfResponse) {
+        return csrfResponse;
+      }
+    }
+
     // Allow public routes
     if (isPublicRoute(pathname)) {
-      return NextResponse.next();
+      const response = NextResponse.next();
+      
+      // Apply security headers even to public routes
+      SecurityHeaders.applyHeaders(response, {
+        contentSecurityPolicy: {
+          directives: {
+            'default-src': ["'self'"],
+            'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            'style-src': ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            'font-src': ["'self'", "https://fonts.gstatic.com"],
+            'img-src': ["'self'", "data:", "https:"],
+            'connect-src': ["'self'"],
+          }
+        }
+      });
+
+      // Add CSRF token for authenticated users
+      if (token) {
+        const csrfToken = CSRFProtection.generateToken();
+        CSRFProtection.addTokenToCookie(response, csrfToken);
+      }
+
+      return response;
     }
 
     // If no token, redirect to signin
@@ -69,17 +137,70 @@ export default withAuth(
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Add security headers
+    // Create response with enhanced security headers
     const response = NextResponse.next();
     
-    // Security headers for authenticated routes
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
-    );
+    // Apply comprehensive security headers
+    SecurityHeaders.applyHeaders(response, {
+      contentSecurityPolicy: {
+        directives: {
+          'default-src': ["'self'"],
+          'script-src': [
+            "'self'",
+            "'unsafe-inline'", // Required for Next.js
+            "'unsafe-eval'", // Required for Next.js development
+            "https://vercel.live",
+          ],
+          'style-src': [
+            "'self'",
+            "'unsafe-inline'", // Required for Tailwind CSS
+            "https://fonts.googleapis.com",
+          ],
+          'img-src': ["'self'", "data:", "https:", "blob:"],
+          'font-src': ["'self'", "data:", "https://fonts.gstatic.com"],
+          'connect-src': [
+            "'self'",
+            "https://api.resend.com",
+            "https://notify-api.line.me",
+            process.env.NODE_ENV === 'development' ? "ws://localhost:*" : "",
+          ].filter(Boolean),
+          'frame-src': ["'none'"],
+          'object-src': ["'none'"],
+          'base-uri': ["'self'"],
+          'form-action': ["'self'"],
+          'frame-ancestors': ["'none'"],
+        }
+      },
+      strictTransportSecurity: process.env.NODE_ENV === 'production' && process.env.HTTPS_ENABLED === 'true' ? {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      } : undefined,
+      permissionsPolicy: {
+        camera: [],
+        microphone: [],
+        geolocation: [],
+        payment: [],
+        usb: [],
+        magnetometer: [],
+        gyroscope: [],
+        accelerometer: [],
+      }
+    });
+
+    // Add CSRF token to authenticated responses
+    const csrfToken = CSRFProtection.generateToken();
+    CSRFProtection.addTokenToCookie(response, csrfToken);
+
+    // Add rate limit headers to response
+    if (pathname.startsWith('/api/')) {
+      const rateLimitConfig = RATE_LIMIT_CONFIGS.API;
+      const rateLimitResult = await rateLimiter.checkRateLimit(req, rateLimitConfig);
+      
+      response.headers.set('X-RateLimit-Limit', rateLimitConfig.maxRequests.toString());
+      response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+      response.headers.set('X-RateLimit-Reset', Math.ceil(rateLimitResult.resetTime / 1000).toString());
+    }
 
     return response;
   },

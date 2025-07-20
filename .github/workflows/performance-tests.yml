@@ -1,0 +1,184 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_duration:
+        description: 'Test duration in seconds'
+        required: false
+        default: '60'
+        type: string
+      concurrent_users:
+        description: 'Number of concurrent users'
+        required: false
+        default: '10'
+        type: string
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: evidence_management_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: evidence-management-system/package-lock.json
+
+    - name: Install dependencies
+      working-directory: evidence-management-system
+      run: npm ci
+
+    - name: Setup environment variables
+      working-directory: evidence-management-system
+      run: |
+        cp .env.example .env
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/evidence_management_test" >> .env
+        echo "REDIS_URL=redis://localhost:6379" >> .env
+        echo "NEXTAUTH_SECRET=test-secret-key-for-performance-testing" >> .env
+        echo "APP_URL=http://localhost:3000" >> .env
+
+    - name: Generate Prisma client
+      working-directory: evidence-management-system
+      run: npm run db:generate
+
+    - name: Run database migrations
+      working-directory: evidence-management-system
+      run: npm run db:push
+
+    - name: Seed test data
+      working-directory: evidence-management-system
+      run: npm run db:seed
+
+    - name: Build application
+      working-directory: evidence-management-system
+      run: npm run build
+
+    - name: Start application
+      working-directory: evidence-management-system
+      run: |
+        npm start &
+        echo $! > app.pid
+        # Wait for application to start
+        timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
+
+    - name: Create performance test config
+      working-directory: evidence-management-system
+      run: |
+        cat > performance-config.json << EOF
+        [
+          {
+            "name": "Health Check Performance",
+            "url": "/api/health",
+            "method": "GET",
+            "maxResponseTime": 100,
+            "concurrentUsers": ${{ github.event.inputs.concurrent_users || '10' }},
+            "testDuration": ${{ github.event.inputs.test_duration || '30' }}
+          },
+          {
+            "name": "Indicator Tree Load Test",
+            "url": "/api/indicator-tree",
+            "method": "GET",
+            "maxResponseTime": 500,
+            "concurrentUsers": ${{ github.event.inputs.concurrent_users || '15' }},
+            "testDuration": ${{ github.event.inputs.test_duration || '45' }}
+          },
+          {
+            "name": "Academic Years API Performance",
+            "url": "/api/academic-years",
+            "method": "GET",
+            "maxResponseTime": 300,
+            "concurrentUsers": ${{ github.event.inputs.concurrent_users || '10' }},
+            "testDuration": ${{ github.event.inputs.test_duration || '30' }}
+          }
+        ]
+        EOF
+
+    - name: Run performance tests
+      working-directory: evidence-management-system
+      run: npm run perf:test:config performance-config.json
+
+    - name: Upload performance report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-test-report
+        path: evidence-management-system/performance-test-report.md
+
+    - name: Comment PR with performance results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = 'evidence-management-system/performance-test-report.md';
+          
+          if (fs.existsSync(path)) {
+            const report = fs.readFileSync(path, 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Performance Test Results\n\n${report}`
+            });
+          }
+
+    - name: Stop application
+      if: always()
+      working-directory: evidence-management-system
+      run: |
+        if [ -f app.pid ]; then
+          kill $(cat app.pid) || true
+          rm app.pid
+        fi
+
+    - name: Check performance test results
+      working-directory: evidence-management-system
+      run: |
+        if [ -f performance-test-report.md ]; then
+          if grep -q "❌" performance-test-report.md; then
+            echo "Performance tests failed!"
+            exit 1
+          else
+            echo "All performance tests passed!"
+          fi
+        else
+          echo "Performance test report not found!"
+          exit 1
+        fi
