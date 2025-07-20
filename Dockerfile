@@ -66,8 +66,8 @@ RUN rm -f .env.local
 FROM base AS runner
 WORKDIR /app
 
-# Install wget for health checks
-RUN apk add --no-cache wget
+# Install wget for health checks and npm for database operations
+RUN apk add --no-cache wget npm
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
