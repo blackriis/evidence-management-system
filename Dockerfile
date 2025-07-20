@@ -96,7 +96,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Generate Prisma client in production (backup)
-RUN npx prisma generate
+RUN npx prisma generate || echo "Prisma generate failed, using built version"
 
 USER nextjs
 
@@ -109,6 +109,10 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Debug startup and server.js
+CMD echo "Starting container..." && \
+    echo "Working directory: $(pwd)" && \
+    echo "Files: $(ls -la)" && \
+    echo "Node modules: $(ls -la node_modules/@prisma 2>/dev/null || echo 'No Prisma')" && \
+    echo "Starting server..." && \
+    node server.js
