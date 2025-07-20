@@ -138,8 +138,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Webpack configuration for security
+  // Webpack configuration for security and path aliases
   webpack: (config, { isServer }) => {
+    // Add path alias for @ symbol
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, 'src'),
+    };
+
     // Add security-related webpack configurations
     if (!isServer) {
       config.resolve.fallback = {
