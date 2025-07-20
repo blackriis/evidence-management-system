@@ -165,6 +165,14 @@ prepare_deployment() {
         fi
     fi
     
+    # Check if remote repository is configured
+    REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null || echo "")
+    if [ -z "$REMOTE_URL" ]; then
+        print_warning "No Git remote 'origin' configured"
+        print_warning "Please follow GIT-SETUP.md to configure your repository"
+        print_warning "For now, you'll need to manually specify repository URL in Dokploy"
+    fi
+    
     print_step "Repository is ready for deployment"
 }
 
@@ -178,7 +186,7 @@ generate_dokploy_config() {
   "type": "docker",
   "source": {
     "type": "git",
-    "repository": "$(git config --get remote.origin.url)",
+    "repository": "${REMOTE_URL:-YOUR_REPOSITORY_URL_HERE}",
     "branch": "$(git branch --show-current)"
   },
   "build": {
@@ -227,7 +235,11 @@ show_deployment_instructions() {
     echo "2. Create a new application:"
     echo "   - Name: ${APP_NAME}"
     echo "   - Type: Git Repository"
-    echo "   - Repository: $(git config --get remote.origin.url)"
+    if [ -n "$REMOTE_URL" ]; then
+        echo "   - Repository: $REMOTE_URL"
+    else
+        echo "   - Repository: [SET UP GIT REMOTE FIRST - see GIT-SETUP.md]"
+    fi
     echo "   - Branch: $(git branch --show-current)"
     echo
     echo "3. Configure build settings:"
