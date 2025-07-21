@@ -1,0 +1,72 @@
+{
+  "name": "evidence-management-system",
+  "description": "Evidence Management System for Educational Quality Assessment",
+  "type": "docker",
+  "dockerfile": "./Dockerfile",
+  "build": {
+    "command": "npm run build",
+    "context": ".",
+    "dockerfile": "./Dockerfile"
+  },
+  "deploy": {
+    "command": "npm start",
+    "port": 3000,
+    "healthcheck": {
+      "path": "/api/health",
+      "interval": 30,
+      "timeout": 10,
+      "retries": 3
+    }
+  },
+  "environment": {
+    "NODE_ENV": "production",
+    "PORT": "3000",
+    "HOSTNAME": "0.0.0.0"
+  },
+  "services": [
+    {
+      "name": "postgres",
+      "image": "postgres:15-alpine",
+      "environment": {
+        "POSTGRES_DB": "evidence_management",
+        "POSTGRES_USER": "evidenceuser",
+        "POSTGRES_PASSWORD": "${DB_PASSWORD}"
+      },
+      "volumes": [
+        "postgres_data:/var/lib/postgresql/data"
+      ],
+      "port": 5432
+    },
+    {
+      "name": "redis",
+      "image": "redis:7-alpine", 
+      "volumes": [
+        "redis_data:/data"
+      ],
+      "port": 6379
+    }
+  ],
+  "domains": [
+    {
+      "domain": "${APP_DOMAIN}",
+      "ssl": true,
+      "ssl_provider": "letsencrypt"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "postgres_data",
+      "type": "local"
+    },
+    {
+      "name": "redis_data", 
+      "type": "local"
+    },
+    {
+      "name": "uploads",
+      "type": "bind",
+      "source": "./uploads",
+      "target": "/app/uploads"
+    }
+  ]
+}
