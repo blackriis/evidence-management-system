@@ -49,7 +49,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Clean up build environment
-RUN rm -f .env.local
+RUN test -f .env.local && rm .env.local || true
 
 # Production image, copy all the files and run next
 FROM base AS runner
