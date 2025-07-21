@@ -55,8 +55,8 @@ RUN rm -f .env.local
 FROM base AS runner
 WORKDIR /app
 
-# Install npm for database operations
-RUN apk add --no-cache npm
+# Install npm for database operations and wget for health checks
+RUN apk add --no-cache npm wget
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -90,8 +90,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+# Health check with longer start period for application initialization
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Simple startup
