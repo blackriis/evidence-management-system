@@ -94,5 +94,5 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Simple startup
-CMD ["node", "server.js"]
+# Generate Prisma client at startup and start server
+CMD ["sh", "-c", "npx prisma generate && node server.js"]
