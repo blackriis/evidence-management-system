@@ -29,7 +29,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  APP_URL: z.string().url().default("https://evidence.pk22.ac.th"),
 });
 
 export type Env = z.infer<typeof envSchema>;
