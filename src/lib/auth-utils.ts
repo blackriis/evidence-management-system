@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import { redirect } from "next/navigation";
 import { ROLE_PERMISSIONS, ACADEMIC_YEAR_ACCESS } from "@/lib/constants";
 

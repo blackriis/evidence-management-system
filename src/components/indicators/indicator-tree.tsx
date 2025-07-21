@@ -22,7 +22,7 @@ import {
   FolderOpen,
   Folder
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface TreeNode {
   id: string;

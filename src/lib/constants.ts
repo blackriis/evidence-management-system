@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "./user-role";
 
 export const ROLE_PERMISSIONS = {
   [UserRole.ADMIN]: {

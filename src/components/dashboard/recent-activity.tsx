@@ -15,7 +15,7 @@ import {
   Loader2,
   RefreshCw
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface ActivityItem {
   id: string;

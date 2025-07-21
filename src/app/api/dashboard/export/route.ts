@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {

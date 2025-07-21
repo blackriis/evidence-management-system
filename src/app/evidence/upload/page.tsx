@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload, CheckCircle, AlertCircle } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface SubIndicator {
   id: string;

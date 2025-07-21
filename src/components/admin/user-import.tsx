@@ -28,7 +28,7 @@ import {
   Import,
   Users
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface ImportPreview {
   row: number;

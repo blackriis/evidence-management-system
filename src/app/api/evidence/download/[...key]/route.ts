@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { storageService } from "@/lib/storage";
 import { db } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface Params {
   key: string[];

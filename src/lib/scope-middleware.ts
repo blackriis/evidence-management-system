@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 export interface ScopeContext {
   userId: string;

@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import { db } from "@/lib/db";
 import { ACADEMIC_YEAR_ACCESS } from "@/lib/constants";
 

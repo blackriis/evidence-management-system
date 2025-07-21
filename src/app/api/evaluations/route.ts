@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ScopeMiddleware } from "@/lib/scope-middleware";
 import { EVALUATION_SCORES } from "@/lib/constants";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import { AuditLogger } from "@/lib/audit-logger";
 
 export async function GET(request: NextRequest) {

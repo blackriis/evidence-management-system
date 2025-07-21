@@ -32,7 +32,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { FileValidator } from "@/lib/file-validation";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface Evidence {
   id: string;

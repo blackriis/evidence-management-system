@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { UserRole } from '@prisma/client';
+import { UserRole } from "@/lib/user-role";
 
 interface ReportData {
   title: string;

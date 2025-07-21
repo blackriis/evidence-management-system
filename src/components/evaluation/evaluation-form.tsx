@@ -25,7 +25,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { EVALUATION_SCORES } from "@/lib/constants";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface Evidence {
   id: string;

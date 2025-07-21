@@ -18,7 +18,7 @@ import {
     Filter,
     Download
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface DashboardData {
     summary: {

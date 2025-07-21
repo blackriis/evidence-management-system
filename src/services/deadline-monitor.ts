@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NotificationService } from './notification';
-import { NotificationType, UserRole } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
+import { UserRole } from '@/lib/user-role';
 import { logger } from '@/lib/logger';
 import { addDays, differenceInDays, isBefore, isAfter } from 'date-fns';
 

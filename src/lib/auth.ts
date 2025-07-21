@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "./user-role";
 import { db } from "@/lib/db";
 import { AuditLogger } from "@/lib/audit-logger";
 

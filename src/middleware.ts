@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import { SecurityHeaders, CSRFProtection } from "@/lib/security-headers";
 import { rateLimiter, RATE_LIMIT_CONFIGS } from "@/lib/rate-limiter";
 

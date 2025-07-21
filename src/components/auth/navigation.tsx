@@ -13,7 +13,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import {
     FileText,
     BarChart3,

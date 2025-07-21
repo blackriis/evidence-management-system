@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 // We'll extend the database schema to include evaluator assignments
 // For now, we'll use a junction table approach through evidence assignments

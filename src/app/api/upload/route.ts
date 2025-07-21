@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { storageService } from "@/lib/storage";
 import { FileValidator } from "@/lib/file-validation";
 import { FILE_UPLOAD_LIMITS } from "@/lib/constants";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 import { AuditLogger } from "@/lib/audit-logger";
 import { withRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limiter";
 import { withSecurityHeaders, withCSRFProtection } from "@/lib/security-headers";

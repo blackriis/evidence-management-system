@@ -14,7 +14,7 @@ import {
   BarChart3,
   AlertTriangle
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/user-role";
 
 interface DashboardMetricsProps {
   data: {
