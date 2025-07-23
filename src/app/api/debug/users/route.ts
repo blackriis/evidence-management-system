@@ -53,6 +53,8 @@ export async function GET(request: NextRequest) {
       environment: {
         nodeEnv: process.env.NODE_ENV,
         hasDatabase: !!process.env.DATABASE_URL,
+        databaseUrlHost: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : 'none',
+        databaseUrlUser: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).username : 'none',
         hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
         nextAuthUrl: process.env.NEXTAUTH_URL,
       },
@@ -65,6 +67,8 @@ export async function GET(request: NextRequest) {
       environment: {
         nodeEnv: process.env.NODE_ENV,
         hasDatabase: !!process.env.DATABASE_URL,
+        databaseUrlHost: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : 'none',
+        databaseUrlUser: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).username : 'none',
         hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
         nextAuthUrl: process.env.NEXTAUTH_URL,
       },
