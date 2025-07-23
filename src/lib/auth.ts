@@ -170,6 +170,6 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Enable debug in production for troubleshooting
   secret: process.env.NEXTAUTH_SECRET,
 };
