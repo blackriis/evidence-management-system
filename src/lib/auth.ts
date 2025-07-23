@@ -13,7 +13,14 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        console.log("🔐 Auth attempt:", {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password,
+          nodeEnv: process.env.NODE_ENV
+        });
+
         if (!credentials?.email) {
+          console.error("❌ No email provided");
           throw new Error("Email is required");
         }
 
@@ -28,16 +35,26 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
+          console.log("👤 User lookup result:", {
+            found: !!user,
+            email: credentials.email,
+            userId: user?.id,
+            role: user?.role
+          });
+
           if (!user) {
+            console.error("❌ User not found or inactive");
             throw new Error("Invalid credentials");
           }
 
           // In development, accept any password for existing users
           // In production, verify hashed password here
           if (process.env.NODE_ENV === "production" && !credentials.password) {
+            console.error("❌ No password provided in production");
             throw new Error("Password is required");
           }
 
+          console.log("✅ Authentication successful for:", user.email);
           return {
             id: user.id,
             email: user.email,
@@ -45,7 +62,7 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
-          console.error("Authentication error:", error);
+          console.error("❌ Authentication error:", error);
           return null;
         }
       },
