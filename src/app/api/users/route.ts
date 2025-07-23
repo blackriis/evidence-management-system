@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { UserRole } from "@/lib/user-role";
 import { z } from "zod";
-import bcrypt from "@/lib/bcrypt-mock";
+import bcrypt from "bcryptjs";
 
 const CreateUserSchema = z.object({
   name: z.string().min(1, "Name is required"),

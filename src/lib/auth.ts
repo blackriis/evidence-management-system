@@ -13,51 +13,89 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log("🔐 Auth attempt (MOCK MODE):", {
+        console.log("🔐 Auth attempt:", {
           email: credentials?.email,
           hasPassword: !!credentials?.password,
           nodeEnv: process.env.NODE_ENV
         });
 
-        if (!credentials?.email) {
-          console.error("❌ No email provided");
+        if (!credentials?.email || !credentials?.password) {
+          console.error("❌ Missing email or password");
           return null;
         }
 
-        // MOCK AUTHENTICATION - bypass database
-        const mockUsers = {
-          'admin@school.edu': { id: '1', name: 'System Administrator', role: 'ADMIN' },
-          'teacher1@school.edu': { id: '2', name: 'Alice Johnson', role: 'TEACHER' },
-          'iqa1@school.edu': { id: '3', name: 'Dr. Sarah Miller', role: 'IQA_EVALUATOR' },
-          'eqa1@school.edu': { id: '4', name: 'Dr. Robert Taylor', role: 'EQA_EVALUATOR' },
-          'executive1@school.edu': { id: '5', name: 'Principal John Executive', role: 'EXECUTIVE' },
-        };
+        try {
+          // Find user in database
+          const user = await db.user.findUnique({
+            where: { 
+              email: credentials.email,
+              isActive: true 
+            }
+          });
 
-        const mockUser = mockUsers[credentials.email as keyof typeof mockUsers];
-        
-        if (mockUser) {
-          console.log("✅ MOCK authentication successful for:", credentials.email);
+          if (!user) {
+            console.error("❌ User not found or inactive:", credentials.email);
+            return null;
+          }
+
+          // In development mode, allow any password for existing users
+          if (process.env.NODE_ENV === 'development') {
+            console.log("✅ Development mode - bypassing password check for:", credentials.email);
+            
+            // Log authentication event
+            await AuditLogger.log({
+              action: 'USER_LOGIN',
+              userId: user.id,
+              details: { 
+                email: user.email, 
+                role: user.role,
+                developmentMode: true 
+              }
+            });
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+            };
+          }
+
+          // In production, verify password
+          const bcrypt = require('bcryptjs');
+          if (!user.password) {
+            console.error("❌ User has no password set:", credentials.email);
+            return null;
+          }
+
+          const isValidPassword = await bcrypt.compare(credentials.password, user.password);
+          if (!isValidPassword) {
+            console.error("❌ Invalid password for:", credentials.email);
+            return null;
+          }
+
+          // Log successful authentication
+          await AuditLogger.log({
+            action: 'USER_LOGIN',
+            userId: user.id,
+            details: { 
+              email: user.email, 
+              role: user.role 
+            }
+          });
+
+          console.log("✅ Authentication successful for:", credentials.email);
           return {
-            id: mockUser.id,
-            email: credentials.email,
-            name: mockUser.name,
-            role: mockUser.role,
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
           };
-        }
 
-        // Fallback for any @school.edu email
-        if (credentials.email.endsWith('@school.edu')) {
-          console.log("✅ MOCK authentication (fallback) for:", credentials.email);
-          return {
-            id: Math.random().toString(),
-            email: credentials.email,
-            name: credentials.email.split('@')[0],
-            role: 'TEACHER',
-          };
+        } catch (error) {
+          console.error("❌ Authentication error:", error);
+          return null;
         }
-
-        console.error("❌ Mock authentication failed for:", credentials.email);
-        return null;
       },
     }),
   ],
@@ -81,7 +119,31 @@ export const authOptions: NextAuthOptions = {
         console.log("🔑 JWT token created for:", user.email);
       }
 
-      // Skip database refresh in MOCK mode
+      // Refresh user data from database on update or periodically
+      if (trigger === "update" || (!user && token.id)) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { 
+              id: token.id as string,
+              isActive: true 
+            }
+          });
+
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.email = dbUser.email;
+            token.name = dbUser.name;
+            console.log("🔄 JWT token refreshed from database for:", dbUser.email);
+          } else {
+            console.warn("⚠️ User not found during token refresh:", token.id);
+            // Return null to force re-authentication
+            return null;
+          }
+        } catch (error) {
+          console.error("❌ Error refreshing JWT token:", error);
+        }
+      }
+
       console.log("🔄 JWT callback - token:", { 
         hasId: !!token.id, 
         email: token.email, 
@@ -125,10 +187,25 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn({ user }) {
-      console.log(`✅ MOCK User ${user.email} signed in with role ${user.role}`);
+      console.log(`✅ User ${user.email} signed in with role ${user.role}`);
     },
     async signOut({ token }) {
-      console.log(`👋 MOCK User ${token?.email} signed out`);
+      console.log(`👋 User ${token?.email} signed out`);
+      
+      // Log signout event
+      if (token?.id) {
+        try {
+          await AuditLogger.log({
+            action: 'USER_LOGOUT',
+            userId: token.id as string,
+            details: { 
+              email: token.email as string 
+            }
+          });
+        } catch (error) {
+          console.error("❌ Error logging signout:", error);
+        }
+      }
     },
   },
   debug: true, // Enable debug in production for troubleshooting
