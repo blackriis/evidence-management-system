@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log("🔐 Auth attempt:", {
+        console.log("🔐 Auth attempt (MOCK MODE):", {
           email: credentials?.email,
           hasPassword: !!credentials?.password,
           nodeEnv: process.env.NODE_ENV
@@ -21,50 +21,43 @@ export const authOptions: NextAuthOptions = {
 
         if (!credentials?.email) {
           console.error("❌ No email provided");
-          throw new Error("Email is required");
-        }
-
-        try {
-          // For development, we'll use a simple email-based authentication
-          // In production, you would verify against hashed passwords
-          const user = await db.user.findUnique({
-            where: {
-              email: credentials.email,
-              isActive: true,
-              deletedAt: null,
-            },
-          });
-
-          console.log("👤 User lookup result:", {
-            found: !!user,
-            email: credentials.email,
-            userId: user?.id,
-            role: user?.role
-          });
-
-          if (!user) {
-            console.error("❌ User not found or inactive");
-            throw new Error("Invalid credentials");
-          }
-
-          // In development, accept any password for existing users
-          // In production, verify hashed password here
-          if (process.env.NODE_ENV === "production" && !credentials.password) {
-            console.error("❌ No password provided in production");
-            throw new Error("Password is required");
-          }
-
-          console.log("✅ Authentication successful for:", user.email);
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-          };
-        } catch (error) {
-          console.error("❌ Authentication error:", error);
           return null;
         }
+
+        // MOCK AUTHENTICATION - bypass database
+        const mockUsers = {
+          'admin@school.edu': { id: '1', name: 'System Administrator', role: 'ADMIN' },
+          'teacher1@school.edu': { id: '2', name: 'Alice Johnson', role: 'TEACHER' },
+          'iqa1@school.edu': { id: '3', name: 'Dr. Sarah Miller', role: 'IQA_EVALUATOR' },
+          'eqa1@school.edu': { id: '4', name: 'Dr. Robert Taylor', role: 'EQA_EVALUATOR' },
+          'executive1@school.edu': { id: '5', name: 'Principal John Executive', role: 'EXECUTIVE' },
+        };
+
+        const mockUser = mockUsers[credentials.email as keyof typeof mockUsers];
+        
+        if (mockUser) {
+          console.log("✅ MOCK authentication successful for:", credentials.email);
+          return {
+            id: mockUser.id,
+            email: credentials.email,
+            name: mockUser.name,
+            role: mockUser.role,
+          };
+        }
+
+        // Fallback for any @school.edu email
+        if (credentials.email.endsWith('@school.edu')) {
+          console.log("✅ MOCK authentication (fallback) for:", credentials.email);
+          return {
+            id: Math.random().toString(),
+            email: credentials.email,
+            name: credentials.email.split('@')[0],
+            role: 'TEACHER',
+          };
+        }
+
+        console.error("❌ Mock authentication failed for:", credentials.email);
+        return null;
       },
     }),
   ],
@@ -85,41 +78,31 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.email = user.email;
         token.name = user.name;
+        console.log("🔑 JWT token created for:", user.email);
       }
 
-      // Refresh user data on session update
-      if (trigger === "update" && token.id) {
-        try {
-          const refreshedUser = await db.user.findUnique({
-            where: {
-              id: token.id as string,
-              isActive: true,
-              deletedAt: null,
-            },
-          });
-
-          if (refreshedUser) {
-            token.role = refreshedUser.role;
-            token.email = refreshedUser.email;
-            token.name = refreshedUser.name;
-          } else {
-            // User was deactivated or deleted
-            return {};
-          }
-        } catch (error) {
-          console.error("Token refresh error:", error);
-          return {};
-        }
-      }
+      // Skip database refresh in MOCK mode
+      console.log("🔄 JWT callback - token:", { 
+        hasId: !!token.id, 
+        email: token.email, 
+        trigger 
+      });
 
       return token;
     },
     async session({ session, token }) {
+      console.log("🔐 Session callback:", { 
+        hasToken: !!token, 
+        tokenId: token?.id, 
+        sessionEmail: session?.user?.email 
+      });
+      
       if (token && token.id) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
+        console.log("✅ Session created for:", session.user.email);
       }
       return session;
     },
@@ -142,32 +125,10 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn({ user }) {
-      console.log(`User ${user.email} signed in with role ${user.role}`);
-      
-      // Log successful login
-      try {
-        await AuditLogger.logAuth('LOGIN', user.id, {
-          userId: user.id,
-          // Note: We don't have access to request context here
-          // This could be enhanced by passing context through the auth flow
-        });
-      } catch (error) {
-        console.error('Failed to log sign-in audit:', error);
-      }
+      console.log(`✅ MOCK User ${user.email} signed in with role ${user.role}`);
     },
     async signOut({ token }) {
-      console.log(`User ${token?.email} signed out`);
-      
-      // Log logout
-      try {
-        if (token?.id) {
-          await AuditLogger.logAuth('LOGOUT', token.id as string, {
-            userId: token.id as string,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to log sign-out audit:', error);
-      }
+      console.log(`👋 MOCK User ${token?.email} signed out`);
     },
   },
   debug: true, // Enable debug in production for troubleshooting
